@@ -1,0 +1,102 @@
+{
+  "schema": "babelbench.record/2",
+  "key": "omp-t128-e28-wp2",
+  "parameters": {
+    "model": "omp",
+    "threads": 128,
+    "array_size": 268435456,
+    "exponent": 28,
+    "numtimes": 100
+  },
+  "metadata": {
+    "node": "jrc0189",
+    "jobid": "15647065",
+    "partition": "dc-cpu-devel",
+    "executable": "/p/scratch/cjsc/badwaik1/appbench/runs/000000/000000_build/work/install/bin/omp-stream",
+    "jube_run": "0",
+    "jube_workpackage": "2"
+  },
+  "status": {
+    "success": true,
+    "problems": []
+  },
+  "device": {},
+  "phases": [
+    {
+      "name": "Init",
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bandwidth_mb_per_s": 16308.5,
+      "runtime_s": 0.395037
+    },
+    {
+      "name": "Read",
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bandwidth_mb_per_s": 84195.2,
+      "runtime_s": 0.0765181
+    }
+  ],
+  "kernels": [
+    {
+      "name": "Copy",
+      "numtimes": 100,
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bytes_per_iteration": 4294967296,
+      "bandwidth_max_mb_per_s": 219170.0,
+      "bandwidth_avg_mb_per_s": 218313.42299754996,
+      "runtime_min_s": 0.0195965,
+      "runtime_max_s": 0.0199003,
+      "runtime_avg_s": 0.0196734
+    },
+    {
+      "name": "Mul",
+      "numtimes": 100,
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bytes_per_iteration": 4294967296,
+      "bandwidth_max_mb_per_s": 207392.0,
+      "bandwidth_avg_mb_per_s": 206422.3205025304,
+      "runtime_min_s": 0.0207094,
+      "runtime_max_s": 0.0225807,
+      "runtime_avg_s": 0.0208067
+    },
+    {
+      "name": "Add",
+      "numtimes": 100,
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bytes_per_iteration": 6442450944,
+      "bandwidth_max_mb_per_s": 228549.0,
+      "bandwidth_avg_mb_per_s": 227840.86009032364,
+      "runtime_min_s": 0.0281885,
+      "runtime_max_s": 0.0284302,
+      "runtime_avg_s": 0.0282761
+    },
+    {
+      "name": "Triad",
+      "numtimes": 100,
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bytes_per_iteration": 6442450944,
+      "bandwidth_max_mb_per_s": 231313.0,
+      "bandwidth_avg_mb_per_s": 230069.45682839205,
+      "runtime_min_s": 0.0278517,
+      "runtime_max_s": 0.0282186,
+      "runtime_avg_s": 0.0280022
+    },
+    {
+      "name": "Dot",
+      "numtimes": 100,
+      "n_elements": 268435456,
+      "element_bytes": 8,
+      "bytes_per_iteration": 4294967296,
+      "bandwidth_max_mb_per_s": 309653.0,
+      "bandwidth_avg_mb_per_s": 307602.9203520809,
+      "runtime_min_s": 0.0138703,
+      "runtime_max_s": 0.0145187,
+      "runtime_avg_s": 0.0139627
+    }
+  ]
+}

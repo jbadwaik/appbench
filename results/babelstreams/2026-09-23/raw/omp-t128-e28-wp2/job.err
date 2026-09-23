@@ -1,0 +1,39 @@
++ '[' -z '' ']'
++ case "$-" in
++ __lmod_vx=x
++ '[' -n x ']'
++ set +x
+Shell debugging temporarily silenced: export LMOD_SH_DBG_ON=1 for this output (/p/software/jurecadc/lmod/8.7.64/init/bash)
+Shell debugging restarted
++ unset __lmod_vx
++ export OMP_NUM_THREADS=128
++ OMP_NUM_THREADS=128
++ export OMP_PLACES=cores
++ OMP_PLACES=cores
++ export OMP_PROC_BIND=spread
++ OMP_PROC_BIND=spread
++ hostname
++ lscpu --json
++ module load Stages/2026 GCC CMake
++ '[' -z '' ']'
++ case "$-" in
++ __lmod_sh_dbg=x
++ '[' -n x ']'
++ set +x
+Shell debugging temporarily silenced: export LMOD_SH_DBG_ON=1 for Lmod's output
+
+The following have been reloaded with a version change:
+  1) GCCcore/.14.3.0 => GCCcore/14.3.0
+
+Shell debugging restarted
++ unset __lmod_sh_dbg
++ return 0
++ JUBE_ERR_CODE=0
++ '[' 0 -ne 0 ']'
+++ cat build/executable.txt
++ srun --cpus-per-task=128 --cpu-bind=none /p/scratch/cjsc/badwaik1/appbench/runs/000000/000000_build/work/install/bin/omp-stream --csv --arraysize 268435456 --numtimes 100
++ JUBE_ERR_CODE=0
++ '[' 0 -ne 0 ']'
++ JUBE_ERR_CODE=0
++ '[' 0 -ne 0 ']'
++ touch ready

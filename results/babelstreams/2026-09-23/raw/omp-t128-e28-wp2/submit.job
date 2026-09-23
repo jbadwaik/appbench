@@ -1,0 +1,47 @@
+#!/bin/bash -x
+#SBATCH --job-name="babelstream_execute_2"
+#SBATCH --mail-user=
+#SBATCH --mail-type=NONE
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=128
+#SBATCH --time=00:20:00
+#SBATCH --output=job.out
+#SBATCH --error=job.err
+#SBATCH --partition=dc-cpu-devel
+#SBATCH --gres=NONE
+#SBATCH --account=zam
+#SBATCH --exclusive
+
+export OMP_NUM_THREADS="128"
+export OMP_PLACES="cores"
+export OMP_PROC_BIND="spread"
+
+
+hostname > node.txt
+lscpu --json > lscpu.json
+module load Stages/2026 GCC CMake
+
+JUBE_ERR_CODE=$?
+if [ $JUBE_ERR_CODE -ne 0 ]; then
+    touch error
+    exit $JUBE_ERR_CODE
+fi
+
+ srun --cpus-per-task=${SLURM_CPUS_PER_TASK} --cpu-bind=none $(cat build/executable.txt) --csv --arraysize 268435456 --numtimes 100
+
+JUBE_ERR_CODE=$?
+if [ $JUBE_ERR_CODE -ne 0 ]; then
+    touch error
+    exit $JUBE_ERR_CODE
+fi
+
+
+
+JUBE_ERR_CODE=$?
+if [ $JUBE_ERR_CODE -ne 0 ]; then
+    touch error
+    exit $JUBE_ERR_CODE
+fi
+
+touch ready

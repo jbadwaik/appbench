@@ -1,0 +1,27 @@
+{
+  "schema": "babelbench.context/1",
+  "created": "2026-09-23T12:49:10+00:00",
+  "babelbench": "0.1.0",
+  "system": {
+    "name": "jurecadc",
+    "login_host": "jrlogin10.jureca",
+    "os": "Rocky Linux 9.8 (Blue Onyx)",
+    "kernel": "5.14.0-687.41.1.el9_8.x86_64",
+    "machine": "x86_64"
+  },
+  "user": {
+    "budget": "zam"
+  },
+  "repository": {
+    "available": true,
+    "commit": "18582e4ef374f1252b01e50c9696d47eb5ded22c",
+    "dirty": true
+  },
+  "tools": {
+    "python": "3.13.5",
+    "jube": "JUBE, version 2.7.1",
+    "spack": null,
+    "uv": "uv 0.8.17",
+    "slurm": "slurm 25.05.9-1.20260903git791df5b.el9"
+  }
+}
