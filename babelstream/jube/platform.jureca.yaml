@@ -1,0 +1,99 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+#
+# The JURECA-DC platform, on top of JUBE's Slurm platform. platform.xml and its
+# submit.job.in are found through $JUBE_INCLUDE_PATH, which the JUBE module
+# on JSC systems sets.
+#
+# Expects the benchmark to define model, threads, array_size and numtimes.
+
+parameterset:
+
+  # ----------------------------------------------------------------------------
+  # Software environment
+  # ----------------------------------------------------------------------------
+
+  # What every platform file provides for the build and the jobs.
+  - name: environment
+    parameter:
+      # The shell command that sets up compiler and tools: JSC's software
+      # stage, with CUDA added for the GPU model
+      - name: environment
+        mode: python
+        _: >-
+          "module load Stages/2026 GCC CMake"
+          + {"omp": "", "cuda": " CUDA"}["${model}"]
+
+      # Compute capability of the GPUs, here the A100
+      - {name: cuda_arch, type: int, _: 80}
+
+  # ----------------------------------------------------------------------------
+  # Job
+  # ----------------------------------------------------------------------------
+
+  # How jobs are submitted and started. Everything not set here keeps
+  # platform.xml's default: sbatch, srun, and the ready and error files.
+  - name: executeset
+    init_with: platform.xml
+    parameter:
+      # The task gets the CPUs the job asked for, which is the whole node
+      # (see threadspertask). srun must not ask for more than the job has.
+      - name: args_starter
+        _: --cpus-per-task=$${SLURM_CPUS_PER_TASK} --cpu-bind=none
+
+  # What goes into the job script, filled into platform.xml's
+  # submit.job.in. Everything not set here keeps platform.xml's default,
+  # such as one node with one task.
+  - name: systemParameter
+    init_with: platform.xml
+    parameter:
+      # Set by `jutil env activate -p <project>`
+      - {name: account, mode: env, _: BUDGET_ACCOUNTS}
+
+      # Slurm partition, GPU request and time limit per model. The devel
+      # partitions start quickly and are long enough for one BabelStream run.
+      - name: queue
+        mode: python
+        _: '{"omp": "dc-cpu-devel", "cuda": "dc-gpu-devel"}["${model}"]'
+      - name: gres
+        mode: python
+        _: '{"omp": "NONE", "cuda": "gpu:1"}["${model}"]'
+      - name: timelimit
+        mode: python
+        _: '{"omp": "00:20:00", "cuda": "00:10:00"}["${model}"]'
+
+      # The whole node, so no other job shares its memory bandwidth
+      - {name: additional_job_config, _: "#SBATCH --exclusive"}
+
+      # The job's single task gets every core of the node, whatever the
+      # thread count, so that `spread` can place a few threads across all
+      # sockets. JURECA-DC nodes have 128 cores; Slurm counts one CPU per
+      # core here, while SLURM_CPUS_ON_NODE counts both hardware threads.
+      - {name: threadspertask, type: int, _: 128}
+
+      # The thread count itself, instead of platform.xml's default of one
+      # thread per CPU of the task
+      - {name: OMP_NUM_THREADS, type: int, export: "true", _: "${threads}"}
+
+      # One thread per core, spread evenly over sockets and memory domains
+      - {name: OMP_PLACES, export: "true", _: cores}
+      - {name: OMP_PROC_BIND, export: "true", _: spread}
+
+      # Runs in the job before BabelStream: note the node, and set up the
+      # environment. The platform checks the exit status of the last command
+      # only, so the environment comes last.
+      - name: preprocess
+        _: |-
+          hostname > node.txt
+          lscpu --json > lscpu.json
+          ${environment}
+
+      # The executable from the build step, reached through JUBE's `build`
+      # link. BabelStream's output lands in job.out and job.err.
+      - {name: executable, _: $(cat build/executable.txt)}
+
+      # Machine-readable output, array length and iterations
+      - name: args_exec
+        _: --csv --arraysize ${array_size} --numtimes ${numtimes}

@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+#
+# Environment template for the BabelStream benchmark.
+#
+# A build copies this manifest with `spack env create -d`, registers the
+# compiler and tools it finds into the copy, and adds exactly one spec. The
+# template itself stays untouched and carries no specs, and nothing in it is
+# specific to a system.
+#
+# Spack installs into $BABELBENCH_SPACK_STORE, which must be set.
+
+spack:
+  specs: []
+
+  view: false
+
+  config:
+    install_tree:
+      root: $BABELBENCH_SPACK_STORE

@@ -1,0 +1,13 @@
+Using CUDA device NVIDIA A100-SXM4-40GB
+Driver: 12040
+Memory: DEFAULT
+Reduction kernel config: 432 groups of (fixed) size 1024
+phase,n_elements,sizeof,max_mbytes_per_sec,runtime
+Init,268435456,8,1822.36,3.53387
+Read,268435456,8,20104.8,0.320322
+function,num_times,n_elements,sizeof,max_mbytes_per_sec,min_runtime,max_runtime,avg_runtime
+Copy,100,268435456,8,1386421,0.00309783,0.00312003,0.00310611
+Mul,100,268435456,8,1383210,0.00310502,0.00313018,0.00311372
+Add,100,268435456,8,1422106,0.00453016,0.00455610,0.00454020
+Triad,100,268435456,8,1423512,0.00452568,0.00455302,0.00453601
+Dot,100,268435456,8,1391224,0.00308713,0.00312822,0.00310120

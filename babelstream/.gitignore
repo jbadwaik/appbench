@@ -1,0 +1,14 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+
+.venv/
+uv.lock
+/artifacts/
+/jube/runs/
+__pycache__/
+*.pyc
+dist/
+.ruff_cache/
+.pytest_cache/

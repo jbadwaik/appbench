@@ -1,0 +1,74 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+#
+# Build BabelStream with Spack, selected with tag `spack`.
+#
+# Requires BABELBENCH_SPACK_STORE, the directory Spack installs into.
+
+parameterset:
+  - name: spack
+    parameter:
+      # Only checks that the variable is set; spack/spack.yaml reads it
+      - {name: spack_store, mode: env, _: BABELBENCH_SPACK_STORE}
+
+      # Tools Spack may take from the environment instead of building them
+      - name: externals
+        mode: python
+        _: '{"omp": "cmake", "cuda": "cmake cuda"}["${model}"]'
+
+      # The GPU build needs the platform's compute capability
+      - name: spec
+        mode: python
+        _: >-
+          {"omp": "babelstream +omp",
+           "cuda": "babelstream +cuda cuda_arch=${cuda_arch}"}["${model}"]
+
+# Runs once, on the login node, for the chosen model
+step:
+  name: build
+  tag: spack
+  use:
+    - paths
+    - build
+    - environment
+    - {from: build.spack.yaml, _: spack}
+  do:
+    # The same compiler and CUDA the jobs use at run time
+    - ${environment}
+
+    # A fresh environment in the workpackage, from the repository's template
+    - spack env create -d spack-env ${project_root}/spack/spack.yaml
+
+    # Register the compiler and tools found in the environment, so Spack
+    # uses them instead of building its own
+    - spack -e spack-env compiler find
+    - spack -e spack-env external find ${externals}
+
+    # BabelStream from Spack's builtin recipe, with nothing but the model,
+    # and uv for babelbench
+    - spack -e spack-env add ${spec}
+    - spack -e spack-env add py-uv
+    - spack -e spack-env concretize
+    - spack -e spack-env install --fail-fast
+
+    # BabelStream names its executable after the model
+    - spack -e spack-env location -i babelstream > prefix.txt
+    - echo "$(cat prefix.txt)/bin/${model}-stream" > executable.txt
+
+    # Provenance for the records
+    - spack -e spack-env find --json babelstream > spec.json
+    - cp spack-env/spack.yaml spack-env/spack.lock .
+
+    # uv for babelbench, from this Spack environment. `load --sh` prints
+    # the commands, so this works without Spack's shell integration.
+    - eval "$$(spack -e spack-env load --sh py-uv)"
+
+    # Record where uv is, so later steps find it without loading modules:
+    # JUBE merges the environments of a step's parents, which can leave
+    # Lmod's module state inconsistent with PATH. Fails here if uv is missing.
+    - >-
+      printf 'export PATH="%s:$$PATH"\n' "$$(dirname "$$(command -v uv)")"
+      > tools.sh
+    - . ./tools.sh && uv --version

@@ -1,0 +1,186 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+#
+# BabelStream, the memory bandwidth benchmark, driven by JUBE.
+#
+# Supported platforms: JURECA-DC (platform.jureca.yaml).
+#
+# The benchmark runs in four steps:
+#
+#   build        loads or builds BabelStream (build.easybuild.yaml, or
+#                build.spack.yaml with tag `spack`), and provides uv
+#   setup        records the git commit, system and tool versions
+#   execute      submits one Slurm job per configuration
+#   postprocess  turns each job's output into JSON, CSV, plots and a summary
+#
+# Usage:
+#
+#   jube run jube/babelstream.yaml [--tag cuda] [--tag full] [--tag spack]
+#   jube continue jube/runs
+#
+# JUBE_ARTIFACT_DIR must be set to an absolute path for the results. The
+# Spack build also needs BABELBENCH_SPACK_STORE.
+
+# Runs go to jube/runs, one numbered directory per `jube run`
+name: babelstream
+outpath: runs
+comment: BabelStream memory bandwidth
+
+parameterset:
+
+  # ----------------------------------------------------------------------------
+  # Paths
+  # ----------------------------------------------------------------------------
+
+  - name: paths
+    parameter:
+      # The repository root; jube_benchmark_home is this file's directory
+      - {name: project_root, _: "${jube_benchmark_home}/.."}
+
+      # Where results go, from the environment; the run stops if it is unset
+      - {name: artifact_root, mode: env, _: JUBE_ARTIFACT_DIR}
+
+      # One directory per run, e.g. babelstream-000003 for JUBE run 3
+      - name: artifacts
+        _: ${artifact_root}/babelstream-${jube_benchmark_padid}
+
+      # The post-processing CLI (babelbench/), installed by uv into a
+      # throwaway environment, without a lockfile or a .venv in the
+      # repository. --reinstall-package picks up changes to its code. It
+      # knows nothing about JUBE; the steps below pass it everything.
+      - name: babelbench
+        _: >-
+          uv run --quiet --no-project --with ${project_root}/babelbench
+          --reinstall-package babelbench babelbench
+
+  # ----------------------------------------------------------------------------
+  # Benchmark parameters
+  # ----------------------------------------------------------------------------
+
+  # ----------------------------------------------------------------------------
+  # Platform
+  # ----------------------------------------------------------------------------
+
+  # The software environment and GPU architecture, from the platform file.
+  # Both build files and the jobs use it; the platform is chosen here and
+  # in the execute step.
+  - name: environment
+    init_with: platform.jureca.yaml
+
+  # The programming model: OpenMP on the CPUs by default, CUDA on one GPU
+  # with tag `cuda`. It selects the Spack variant, the executable
+  # (omp-stream or cuda-stream) and, in the platform file, the partition.
+  - name: build
+    parameter:
+      - {name: model, tag: "!cuda", _: omp}
+      - {name: model, tag: cuda, _: cuda}
+
+  # One job by default; the full sweep with tag `full`. A Python result with
+  # commas becomes a list of values, one job each.
+  - name: run
+    parameter:
+      # `single` unless tag `full` is given; the parameters below read it
+      - {name: sweep, tag: "!full", _: single}
+      - {name: sweep, tag: full, _: full}
+
+      # OpenMP threads per run. The GPU model always uses 1, since host
+      # threads do not matter there. On the CPU, a single run uses all 128
+      # cores of a node, and the full sweep doubles from 1 up to 128.
+      #
+      # The expression picks one string from a dictionary keyed by `sweep`.
+      # JUBE splits a result with commas into separate values, so the full
+      # sweep becomes eight runs.
+      - name: threads
+        type: int
+        mode: python
+        _: |-
+          "1" if "${model}" == "cuda" else {
+            "single": "128",
+            "full": "1,2,4,8,16,32,64,128",
+          }["${sweep}"]
+
+      # Array length as a power of two: 2^28 elements (2 GiB per array of
+      # doubles) for a single run; 2^16 to 2^30 in the full sweep, from
+      # arrays that fit in cache to 8 GiB per array. Crossed with `threads`,
+      # the full CPU sweep is 8 x 8 = 64 runs.
+      - name: exponent
+        type: int
+        mode: python
+        _: |-
+          {"single": "28", "full": "16,18,20,22,24,26,28,30"}["${sweep}"]
+
+      # Elements per array, as BabelStream's --arraysize wants it
+      - {name: array_size, type: int, mode: python, _: "2**${exponent}"}
+
+      # Iterations per kernel; BabelStream leaves the first out of its timings
+      - {name: numtimes, type: int, _: 100}
+
+step:
+
+  # Provenance of the whole run, captured once on the login node: git
+  # commit, system, and tool versions. The report shows it in its header.
+  # babelbench runs with uv, which the build's tools.sh makes available.
+  - name: setup
+    depend: build
+    use: paths
+    do:
+      - . build/tools.sh
+      - mkdir -p ${artifacts}
+      - ${babelbench} context --root ${project_root} --output ctx.json
+      - cp ctx.json ${artifacts}/context.json
+
+  # The `build` step leaves the path of BabelStream's executable in
+  # executable.txt. By default it builds BabelStream from source with the
+  # platform's modules, or with Spack with tag `spack`; only the step whose
+  # tag matches is kept.
+  - !include build.easybuild.yaml:["step"]
+  - !include build.spack.yaml:["step"]
+
+  # One Slurm job per configuration, through JUBE's Slurm platform.
+  # platform.jureca.yaml sets the job up; platform.xml supplies the job
+  # script template (jobfiles) and fills it in (executesub).
+  #
+  # sbatch returns at once. The job creates `ready` when it succeeds, or
+  # `error` when it fails; `jube continue` checks for them.
+  - name: execute
+    depend: build
+    use:
+      - run
+      - environment
+      - {from: platform.jureca.yaml, _: "executeset,systemParameter"}
+      - {from: platform.xml, _: "jobfiles,executesub"}
+    do:
+      done_file: ${done_file}
+      error_file: ${error_file}
+      _: ${submit} ${submit_script} > jobid.txt
+
+  # Turn each finished job into a JSON record, then rebuild the report from
+  # all records so far. The report is complete once the last job is done.
+  #
+  # `execute` is JUBE's link to the job's workpackage directory. The record
+  # key names the configuration and the execute workpackage, so it is
+  # unique within the run and can be traced back to jube/runs.
+  - name: postprocess
+    depend: setup,execute
+    do:
+      - . execute/build/tools.sh
+
+      - >-
+        ${babelbench} record --artifacts ${artifacts}
+        --key ${model}-t${threads}-e${exponent}-wp${jube_wp_parent_execute_id}
+        --model ${model} --threads ${threads}
+        --array-size ${array_size} --numtimes ${numtimes}
+        --stdout execute/job.out --stderr execute/job.err
+        --metadata node="$$(cat execute/node.txt)"
+        --metadata jobid="$$(awk '{print $$4}' execute/jobid.txt)"
+        --metadata partition=${queue}
+        --metadata executable="$$(cat execute/build/executable.txt)"
+        --metadata jube_run=${jube_benchmark_id}
+        --metadata jube_workpackage=${jube_wp_parent_execute_id}
+        --file execute/submit.job --file execute/lscpu.json
+        --file execute/job.out --file execute/job.err
+        --file execute/build/spack.lock --file execute/build/spec.json
+
+      - ${babelbench} report --artifacts ${artifacts}

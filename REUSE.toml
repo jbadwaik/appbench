@@ -1,0 +1,22 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+
+version = 1
+
+# JSON cannot carry comments, and the test data must stay byte-for-byte
+# BabelStream output.
+[[annotations]]
+path = [
+    "babelstream/babelbench/src/babelbench/share/*.json",
+    "babelstream/babelbench/tests/data/**",
+]
+SPDX-FileCopyrightText = "ADAC Contributors"
+SPDX-License-Identifier = "Apache-2.0"
+
+# Issue drafts start with their title, so they carry no header.
+[[annotations]]
+path = "issues/0*.md"
+SPDX-FileCopyrightText = "ADAC Contributors"
+SPDX-License-Identifier = "Apache-2.0"

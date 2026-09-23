@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "babelbench.record/2",
+  "title": "One BabelStream run",
+  "type": "object",
+  "required": [
+    "schema", "key", "parameters", "metadata", "status", "device", "phases",
+    "kernels"
+  ],
+  "properties": {
+    "schema": {"const": "babelbench.record/2"},
+    "key": {"type": "string"},
+    "parameters": {
+      "type": "object",
+      "required": ["model", "threads", "array_size", "exponent", "numtimes"],
+      "properties": {
+        "model": {"type": "string"},
+        "threads": {"type": "integer", "minimum": 1},
+        "array_size": {"type": "integer"},
+        "exponent": {"type": "integer"},
+        "numtimes": {"type": "integer", "minimum": 2}
+      }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Free-form, from the caller; the report shows node.",
+      "additionalProperties": {"type": "string"}
+    },
+    "status": {
+      "type": "object",
+      "required": ["success", "problems"],
+      "properties": {
+        "success": {"type": "boolean"},
+        "problems": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "device": {
+      "type": "object",
+      "description": "Reported by the CUDA model only.",
+      "properties": {
+        "name": {"type": "string"},
+        "driver": {"type": "string"},
+        "memory_mode": {"type": "string"}
+      }
+    },
+    "phases": {
+      "type": "array",
+      "description": "Init and Read as printed; BabelStream 5.0 swaps them.",
+      "items": {
+        "type": "object",
+        "required": ["name", "n_elements", "element_bytes",
+                     "bandwidth_mb_per_s", "runtime_s"]
+      }
+    },
+    "kernels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name", "numtimes", "n_elements", "element_bytes",
+          "bytes_per_iteration", "bandwidth_max_mb_per_s",
+          "bandwidth_avg_mb_per_s", "runtime_min_s", "runtime_max_s",
+          "runtime_avg_s"
+        ],
+        "properties": {
+          "name": {"enum": ["Copy", "Mul", "Add", "Triad", "Dot"]},
+          "bandwidth_max_mb_per_s": {
+            "type": "number",
+            "description": "From the minimum runtime; MB = 10^6 bytes."
+          },
+          "bandwidth_avg_mb_per_s": {
+            "type": "number",
+            "description": "From the average runtime; MB = 10^6 bytes."
+          }
+        }
+      }
+    }
+  }
+}

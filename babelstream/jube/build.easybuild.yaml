@@ -1,0 +1,73 @@
+# ------------------------------------------------------------------------------
+# SPDX-FileCopyrightText: ADAC Contributors
+# SPDX-License-Identifier: Apache-2.0
+# ------------------------------------------------------------------------------
+#
+# Build BabelStream from its release tarball with the compiler and tools of
+# the platform's EasyBuild modules, the default.
+#
+# Every build file has a step named `build` that writes the path of
+# BabelStream's executable to executable.txt, and a shell script, tools.sh,
+# that makes uv available for babelbench. build.spack.yaml is the other
+# one, selected with tag `spack`.
+
+parameterset:
+  - name: source
+    parameter:
+      # The release to build, and its checksum (the same one Spack uses)
+      - {name: babelstream_version, _: "5.0"}
+      - name: babelstream_releases
+        _: https://github.com/UoB-HPC/BabelStream/archive/refs/tags
+      - name: babelstream_url
+        _: ${babelstream_releases}/v${babelstream_version}.tar.gz
+      - name: babelstream_sha256
+        _: 1a418203fbfd95595bdc66047e2e39d8f1bba95a49725c9ecb907caf1af2521f
+
+      # BabelStream's CMake options for each model. The CUDA build needs
+      # nvcc from the environment and the platform's compute capability.
+      - name: cmake_options
+        mode: python
+        _: >-
+          {"omp": "-DMODEL=omp",
+           "cuda": "-DMODEL=cuda -DCMAKE_CUDA_COMPILER=nvcc"
+                   " -DCUDA_ARCH=sm_${cuda_arch}"}["${model}"]
+
+# Runs once, on the login node, for the chosen model
+step:
+  name: build
+  tag: "!spack"
+  use:
+    - build
+    - environment
+    - {from: build.easybuild.yaml, _: source}
+  do:
+    # The compiler, CMake and, for CUDA, nvcc from the platform's modules
+    - ${environment}
+
+    # Download the release and check it is the expected one
+    - curl -fsSL -o babelstream.tar.gz ${babelstream_url}
+    - echo "${babelstream_sha256}  babelstream.tar.gz" | sha256sum -c -
+    - tar -xzf babelstream.tar.gz
+
+    # Configure, build and install into this workpackage
+    - >-
+      cmake -S BabelStream-${babelstream_version} -B cmake-build
+      -DCMAKE_BUILD_TYPE=Release ${cmake_options}
+      -DCMAKE_INSTALL_PREFIX=${jube_wp_abspath}/install
+    - cmake --build cmake-build --parallel
+    - cmake --install cmake-build
+
+    # BabelStream names its executable after the model
+    - echo "${jube_wp_abspath}/install/bin/${model}-stream" > executable.txt
+    - test -x "$(cat executable.txt)"
+
+    # uv for babelbench, from its module in the same environment
+    - module load uv
+
+    # Record where uv is, so later steps find it without loading modules:
+    # JUBE merges the environments of a step's parents, which can leave
+    # Lmod's module state inconsistent with PATH. Fails here if uv is missing.
+    - >-
+      printf 'export PATH="%s:$$PATH"\n' "$$(dirname "$$(command -v uv)")"
+      > tools.sh
+    - . ./tools.sh && uv --version
